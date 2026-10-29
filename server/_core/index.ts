@@ -5,6 +5,8 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
+import { seedOptionalsIfEmpty } from "../db";
+import { startAutomationWorker } from "../automation/worker";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
@@ -37,7 +39,13 @@ async function startServer() {
   const port = Number(process.env.PORT || "3000");
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PORT");
   server.on("error", error => { console.error("Server failed:", error.message); process.exit(1); });
-  server.listen(port, "0.0.0.0", () => console.log(`Server listening on port ${port}`));
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`Server listening on port ${port}`);
+    seedOptionalsIfEmpty().catch(error =>
+      console.warn("[Seed] Falha ao preparar o catálogo de opcionais:", error)
+    );
+    startAutomationWorker();
+  });
 }
 
 startServer().catch(error => { console.error(error); process.exit(1); });

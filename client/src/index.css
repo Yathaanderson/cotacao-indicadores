@@ -40,85 +40,91 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
 :root {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-600);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --radius: 0.65rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.235 0.015 65);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.235 0.015 65);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.235 0.015 65);
-  --secondary: oklch(0.98 0.001 286.375);
-  --secondary-foreground: oklch(0.4 0.015 65);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.141 0.005 285.823);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --radius: 0.75rem;
+
+  --background: #fbfaf7;
+  --foreground: #0e2233;
+  --card: #ffffff;
+  --card-foreground: #0e2233;
+  --popover: #ffffff;
+  --popover-foreground: #0e2233;
+  --primary: #1b3fa0;
+  --primary-foreground: #fbfaf7;
+  --secondary: #f1eee6;
+  --secondary-foreground: #26384a;
+  --muted: #f4f1ea;
+  --muted-foreground: #5c6b78;
+  --accent: #e9eefb;
+  --accent-foreground: #0e2233;
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: #e3ded2;
+  --input: #e3ded2;
+  --ring: #1b3fa0;
+
+  --chart-1: #1b3fa0;
+  --chart-2: #f2a007;
+  --chart-3: #1f6b45;
+  --chart-4: #b3261e;
+  --chart-5: #5c6b78;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0e2233;
+  --sidebar-primary: #1b3fa0;
+  --sidebar-primary-foreground: #fbfaf7;
+  --sidebar-accent: #e9eefb;
+  --sidebar-accent-foreground: #0e2233;
+  --sidebar-border: #e3ded2;
+  --sidebar-ring: #1b3fa0;
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  --background: #0b1926;
+  --foreground: #eae6da;
+  --card: #122536;
+  --card-foreground: #eae6da;
+  --popover: #122536;
+  --popover-foreground: #eae6da;
+  --primary: #6f8ef0;
+  --primary-foreground: #0b1926;
+  --secondary: #172c3f;
+  --secondary-foreground: #dbe3ec;
+  --muted: #172c3f;
+  --muted-foreground: #9fb0c0;
+  --accent: #1d3450;
+  --accent-foreground: #eae6da;
+  --destructive: #e57a70;
+  --destructive-foreground: #0b1926;
+  --border: #22384d;
+  --input: #22384d;
+  --ring: #6f8ef0;
+  --sidebar: #122536;
+  --sidebar-foreground: #eae6da;
+  --sidebar-primary: #6f8ef0;
+  --sidebar-primary-foreground: #0b1926;
+  --sidebar-accent: #1d3450;
+  --sidebar-accent-foreground: #eae6da;
+  --sidebar-border: #22384d;
+  --sidebar-ring: #6f8ef0;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    /* Respeita a área segura do iPhone instalado como app. */
+    padding-bottom: env(safe-area-inset-bottom);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
@@ -134,24 +140,11 @@
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
 
@@ -162,16 +155,101 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1180px;
     }
+  }
+
+  /* Etiqueta de placa no estilo Mercosul, usada como assinatura visual. */
+  .placa {
+    display: inline-flex;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(14, 34, 51, 0.18);
+    background: #fbfaf7;
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    line-height: 1;
+  }
+  .placa::before {
+    content: "";
+    width: 0.5rem;
+    background: #f2a007;
+  }
+  .placa > span {
+    padding: 0.3rem 0.55rem;
+    font-weight: 600;
+    color: #0e2233;
+  }
+
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .status-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: currentColor;
+  }
+  .status-pendente {
+    color: #8a5a00;
+    background: #fdf3df;
+  }
+  .status-processando {
+    color: #1b3fa0;
+    background: #e9eefb;
+  }
+  .status-concluida {
+    color: #1f6b45;
+    background: #e7f4ec;
+  }
+  .status-falha {
+    color: #b3261e;
+    background: #fbeae8;
+  }
+  .status-cancelada {
+    color: #5c6b78;
+    background: #f1eee6;
+  }
+
+  .field-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+}
+
+/* Impressão: a folha da cotação deve sair limpa em A4. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
   }
 }

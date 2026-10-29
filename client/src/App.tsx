@@ -1,37 +1,73 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
+import { AppShell } from "./components/AppShell";
+import { useProfile } from "./hooks/useProfile";
+import Inicio from "./pages/Inicio";
+import NovaCotacao from "./pages/NovaCotacao";
+import CotacaoDetalhe from "./pages/CotacaoDetalhe";
+import Imprimir from "./pages/Imprimir";
+import LinkPublico from "./pages/LinkPublico";
+import Painel from "./pages/Painel";
+
+/** O painel é exclusivo do responsável; qualquer outro perfil vê um aviso. */
+function AdminRoute() {
+  const { profile, loading, user } = useProfile();
+
+  if (loading) {
+    return (
+      <AppShell>
+        <div className="h-40 animate-pulse rounded-xl bg-muted/40" />
+      </AppShell>
+    );
+  }
+
+  if (!user) return <AppShell>{null}</AppShell>;
+
+  if (profile?.role !== "admin") {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-md space-y-3 py-16 text-center">
+          <h1 className="text-lg font-semibold">Área do responsável</h1>
+          <p className="text-sm text-muted-foreground">
+            Esta área é restrita a quem administra a conta. Suas cotações continuam disponíveis no início.
+          </p>
+          <Link href="/" className="text-sm font-medium text-primary underline underline-offset-4">
+            Voltar para as cotações
+          </Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  return <Painel />;
+}
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      <Route path="/" component={Inicio} />
+      <Route path="/nova" component={NovaCotacao} />
+      <Route path="/cotacoes/:id" component={CotacaoDetalhe} />
+      <Route path="/cotacoes/:id/imprimir" component={Imprimir} />
+      <Route path="/painel" component={AdminRoute} />
+      {/* Link compartilhável: aberto sem login, somente leitura */}
+      <Route path="/c/:token" component={LinkPublico} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
-          <Toaster />
+          <Toaster position="top-center" />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
