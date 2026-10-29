@@ -6,12 +6,22 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AppShell } from "./components/AppShell";
 import { useProfile } from "./hooks/useProfile";
+import type { ReactNode } from "react";
 import Inicio from "./pages/Inicio";
 import NovaCotacao from "./pages/NovaCotacao";
 import CotacaoDetalhe from "./pages/CotacaoDetalhe";
 import Imprimir from "./pages/Imprimir";
 import LinkPublico from "./pages/LinkPublico";
 import Painel from "./pages/Painel";
+/**
+ * Só monta a página quando existe sessão. Evita que uma consulta protegida
+ * dispare o redirecionamento de login antes de o usuário ver a tela de entrada.
+ */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useProfile();
+  if (loading || !user) return <AppShell>{null}</AppShell>;
+  return <>{children}</>;
+}
 
 /** O painel é exclusivo do responsável; qualquer outro perfil vê um aviso. */
 function AdminRoute() {
@@ -49,10 +59,24 @@ function AdminRoute() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Inicio} />
-      <Route path="/nova" component={NovaCotacao} />
-      <Route path="/cotacoes/:id" component={CotacaoDetalhe} />
-      <Route path="/cotacoes/:id/imprimir" component={Imprimir} />
+      <Route path="/">
+        <Inicio />
+      </Route>
+      <Route path="/nova">
+        <RequireAuth>
+          <NovaCotacao />
+        </RequireAuth>
+      </Route>
+      <Route path="/cotacoes/:id">
+        <RequireAuth>
+          <CotacaoDetalhe />
+        </RequireAuth>
+      </Route>
+      <Route path="/cotacoes/:id/imprimir">
+        <RequireAuth>
+          <Imprimir />
+        </RequireAuth>
+      </Route>
       <Route path="/painel" component={AdminRoute} />
       {/* Link compartilhável: aberto sem login, somente leitura */}
       <Route path="/c/:token" component={LinkPublico} />

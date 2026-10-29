@@ -34,7 +34,7 @@ export function FolhaCotacao({ quote }: { quote: SheetQuote }) {
 
   return (
     <article className="print-sheet mx-auto w-full max-w-[210mm] overflow-hidden rounded-xl border bg-card p-6 shadow-sm sm:p-10">
-      <header className="flex items-start justify-between gap-4 border-b pb-5">
+      <header className="flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground">
             C
@@ -46,9 +46,9 @@ export function FolhaCotacao({ quote }: { quote: SheetQuote }) {
             </p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 sm:text-right">
           <p className="text-[0.65rem] uppercase tracking-wider text-muted-foreground">Cotação</p>
-          <p className="font-mono text-sm font-semibold">
+          <p className="truncate font-mono text-sm font-semibold">
             {quote.quoteNumber || `Nº ${String(quote.createdAt).slice(0, 10)}`}
           </p>
           <p className="mt-1 text-[0.7rem] text-muted-foreground">
