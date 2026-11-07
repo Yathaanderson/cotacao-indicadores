@@ -127,7 +127,7 @@ export type PowerCrmSelectors = {
 export const DEFAULT_POWERCRM_SELECTORS: PowerCrmSelectors = {
   loginEmail: "E-mail",
   loginPassword: "Senha",
-  loginSubmit: "Entrar",
+  loginSubmit: "Acessar",
   newNegotiationButton: "Nova negociação",
   vehicleTypeField: "Tipo de veículo",
   plateField: "Placa",
@@ -228,10 +228,10 @@ export class PowerCrmDriver implements QuoteDriver {
       await log("Abrindo o PowerCRM.");
       await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
 
-      const loginButton = page.getByRole("button", {
-        name: new RegExp(`^\\s*${escapeRegExp(selectors.loginSubmit)}\\s*$`, "i"),
-      });
-      if (await loginButton.count().catch(() => 0)) {
+      // A tela real de login tem id="emailField" e id="j_password" e usa um
+      // input[type="submit"] com o texto "Acessar" (não é um <button>).
+      const loginField = page.locator("#j_password, #emailField").first();
+      if (await loginField.count().catch(() => 0)) {
         await markSessionExpired().catch(() => undefined);
         throw new Error(
           "A sessão salva do PowerCRM expirou. Faça o login novamente para renovar POWERCRM_SESSION_STATE."
