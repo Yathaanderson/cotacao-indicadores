@@ -216,13 +216,14 @@ export const appRouter = router({
         db.listIndicators(),
         db.countUnlinkedIndicators(),
       ]);
+      const driverSetting = await db.getSetting(DRIVER_SETTING_KEY);
       return {
         quotes,
         totals,
         paused,
         indicators,
         unlinkedIndicators: unlinked,
-        driver: (process.env.AUTOMATION_DRIVER ?? "simulado").toLowerCase(),
+        driver: (driverSetting || process.env.AUTOMATION_DRIVER || "simulado").toLowerCase(),
       };
     }),
 
@@ -283,7 +284,56 @@ export const appRouter = router({
         await db.addQuoteEvent(quote.id, "pendente", "Pedido devolvido à fila pelo responsável.");
         return { ok: true };
       }),
+    /** Estado da conexão com o PowerCRM: conta, data e validade da sessão. */
+    powercrm: adminProcedure.query(async () => {
+      const [info, driverSetting] = await Promise.all([
+        readSessionInfo(),
+        db.getSetting(DRIVER_SETTING_KEY),
+      ]);
+      const driver = (driverSetting || process.env.AUTOMATION_DRIVER || "simulado").toLowerCase();
+      return { info, driver };
+    }),
+    /**
+     * Conecta o PowerCRM. Recebe e-mail e senha apenas para o login e guarda
+     * somente a sessão resultante; a senha não é armazenada.
+     */
+    connectPowercrm: adminProcedure
+      .input(
+        z.object({
+          email: z.string().email("Informe um e-mail válido."),
+          password: z.string().min(4, "Informe a senha."),
+          url: z.string().url().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          const info = await connectPowerCrm(input);
+          await db.setSetting(DRIVER_SETTING_KEY, "powercrm");
+          return { ok: true as const, info };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new TRPCError({ code: "BAD_REQUEST", message });
+        }
+      }),
+    disconnectPowercrm: adminProcedure.mutation(async () => {
+      await disconnectPowerCrm();
+      await db.setSetting(DRIVER_SETTING_KEY, "simulado");
+      return { ok: true as const };
+    }),
+    /** Alterna entre o executor simulado e o real. */
+    setDriver: adminProcedure
+      .input(z.object({ driver: z.enum(["simulado", "powercrm"]) }))
+      .mutation(async ({ input }) => {
+        await db.setSetting(DRIVER_SETTING_KEY, input.driver);
+        return { driver: input.driver };
+      }),
   }),
 });
 
 export type AppRouter = typeof appRouter;
+import {
+  connectPowerCrm,
+  disconnectPowerCrm,
+  readSessionInfo,
+} from "./automation/powercrm-session";
+import { DRIVER_SETTING_KEY } from "./automation/powercrm";

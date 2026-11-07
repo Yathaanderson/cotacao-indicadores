@@ -74,7 +74,7 @@ async function notifyOutcome(quote: QuoteRequest, result: "concluida" | "falha")
 }
 
 async function processQuote(quote: QuoteRequest) {
-  const driver = createDriver();
+  const driver = await createDriver();
   const log = async (message: string) => {
     await db.addQuoteEvent(quote.id, "processando", message);
   };

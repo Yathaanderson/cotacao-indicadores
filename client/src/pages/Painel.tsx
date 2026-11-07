@@ -16,10 +16,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  KeyRound,
   Loader2,
   PauseCircle,
   PlayCircle,
+  Plug,
   RefreshCw,
+  ShieldCheck,
+  Unplug,
   Users,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -32,7 +36,7 @@ const FILTERS: { value: QuoteStatus | "todas"; label: string }[] = [
   { value: "falha", label: "Falhas" },
 ];
 
-type Tab = "cotacoes" | "indicadores" | "opcionais";
+type Tab = "cotacoes" | "indicadores" | "opcionais" | "conexao";
 
 export default function Painel() {
   const utils = trpc.useUtils();
@@ -40,6 +44,7 @@ export default function Painel() {
   const [filter, setFilter] = useState<QuoteStatus | "todas">("todas");
   const [selected, setSelected] = useState<number | null>(null);
   const [newIndicator, setNewIndicator] = useState({ name: "", email: "", phone: "" });
+  const [crm, setCrm] = useState({ email: "", password: "" });
 
   const overview = trpc.admin.overview.useQuery(undefined, { refetchInterval: 12_000 });
   const optionals = trpc.admin.optionals.useQuery(undefined, { enabled: tab === "opcionais" });
@@ -82,6 +87,35 @@ export default function Painel() {
       await utils.admin.overview.invalidate();
       await utils.quotes.byId.invalidate({ id: selected ?? 0 });
       toast.success("Pedido devolvido à fila.");
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  const powercrm = trpc.admin.powercrm.useQuery(undefined, { enabled: tab === "conexao" });
+
+  const connectPowercrm = trpc.admin.connectPowercrm.useMutation({
+    onSuccess: async () => {
+      setCrm({ email: "", password: "" });
+      await utils.admin.powercrm.invalidate();
+      await utils.admin.overview.invalidate();
+      toast.success("PowerCRM conectado. A automação real já está ativa.");
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  const disconnectPowercrm = trpc.admin.disconnectPowercrm.useMutation({
+    onSuccess: async () => {
+      await utils.admin.powercrm.invalidate();
+      await utils.admin.overview.invalidate();
+      toast.success("PowerCRM desconectado. A automação voltou ao modo simulado.");
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  const setDriver = trpc.admin.setDriver.useMutation({
+    onSuccess: async () => {
+      await utils.admin.powercrm.invalidate();
+      await utils.admin.overview.invalidate();
     },
     onError: error => toast.error(error.message),
   });
@@ -166,6 +200,7 @@ export default function Painel() {
               { value: "cotacoes", label: "Cotações" },
               { value: "indicadores", label: `Indicadores${overview.data ? ` (${overview.data.indicators.length})` : ""}` },
               { value: "opcionais", label: "Opcionais" },
+              { value: "conexao", label: "Conexão" },
             ] as { value: Tab; label: string }[]
           ).map(item => (
             <button
@@ -423,6 +458,151 @@ export default function Painel() {
               ))}
             </ul>
           </section>
+        )}
+
+        {tab === "conexao" && (
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+            <section className="rounded-xl border bg-card p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-semibold">
+                    <Plug className="h-4 w-4" /> Conexão com o PowerCRM
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    O PowerCRM não liberou API. A automação entra pela interface web com o seu login.
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full px-2.5 py-1 text-[0.7rem] font-semibold",
+                    powercrm.data?.info?.status === "conectada"
+                      ? "bg-[#e7f4ec] text-[#1f6b45]"
+                      : "bg-[#fdf3df] text-[#8a5a00]"
+                  )}
+                >
+                  {powercrm.data?.info?.status === "conectada" ? "Sessão ativa" : "Não conectado"}
+                </span>
+              </div>
+
+              {powercrm.data?.info ? (
+                <div className="mt-3 space-y-1 rounded-lg bg-secondary p-3 text-xs">
+                  <p className="flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#1f6b45]" />
+                    {powercrm.data.info.account}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Conectado em {formatDateTime(powercrm.data.info.connectedAt)}
+                  </p>
+                  {powercrm.data.info.status === "expirada" && (
+                    <p className="text-[#8b2b22]">
+                      A sessão expirou. Entre novamente para a automação real voltar a funcionar.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  Nenhuma sessão salva. Enquanto não conectar, as cotações são atendidas pelo executor simulado.
+                </p>
+              )}
+
+              <div className="mt-4 space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="crm-email">E-mail do PowerCRM</Label>
+                  <Input
+                    id="crm-email"
+                    type="email"
+                    autoComplete="username"
+                    value={crm.email}
+                    onChange={event => setCrm(prev => ({ ...prev, email: event.target.value }))}
+                    placeholder="seu@email.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="crm-password">Senha</Label>
+                  <Input
+                    id="crm-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={crm.password}
+                    onChange={event => setCrm(prev => ({ ...prev, password: event.target.value }))}
+                    placeholder="Sua senha do PowerCRM"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    className="gap-2"
+                    disabled={connectPowercrm.isPending || !crm.email || !crm.password}
+                    onClick={() => connectPowercrm.mutate(crm)}
+                  >
+                    {connectPowercrm.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <KeyRound className="h-4 w-4" />
+                    )}
+                    {connectPowercrm.isPending ? "Conectando…" : "Conectar"}
+                  </Button>
+                  {powercrm.data?.info && (
+                    <Button
+                      variant="outline"
+                      className="gap-2"
+                      disabled={disconnectPowercrm.isPending}
+                      onClick={() => disconnectPowercrm.mutate()}
+                    >
+                      <Unplug className="h-4 w-4" />
+                      {disconnectPowercrm.isPending ? "Desconectando…" : "Desconectar"}
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[0.7rem] leading-relaxed text-muted-foreground">
+                  A senha é usada só para abrir a sessão e não fica salva. O app guarda apenas a sessão
+                  autenticada, que pode ser encerrada a qualquer momento.
+                </p>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <div className="rounded-xl border bg-card p-4">
+                <h2 className="text-sm font-semibold">Executor das cotações</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  O simulado cria a cotação de teste. O PowerCRM envia de verdade pelo sistema.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    variant={driver === "simulado" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDriver.mutate({ driver: "simulado" })}
+                    disabled={setDriver.isPending}
+                  >
+                    Simulado
+                  </Button>
+                  <Button
+                    variant={driver === "powercrm" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDriver.mutate({ driver: "powercrm" })}
+                    disabled={setDriver.isPending || powercrm.data?.info?.status !== "conectada"}
+                  >
+                    PowerCRM
+                  </Button>
+                </div>
+                {powercrm.data?.info?.status !== "conectada" && (
+                  <p className="mt-2 text-[0.7rem] text-muted-foreground">
+                    Conecte o PowerCRM para liberar o executor real.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-xl border bg-card p-4 text-xs leading-relaxed text-muted-foreground">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <ShieldCheck className="h-4 w-4" /> Como a conexão funciona
+                </h2>
+                <p>
+                  O login é feito uma vez e a sessão fica guardada no servidor. Cada cotação usa essa sessão
+                  para preencher o PowerCRM. Quando o PowerCRM encerra a sessão, o painel avisa e basta entrar
+                  de novo — as cotações que falharem podem ser reenviadas com um toque.
+                </p>
+              </div>
+            </section>
+          </div>
         )}
       </div>
     </AppShell>
