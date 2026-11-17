@@ -11,7 +11,6 @@ import {
   type User,
   type QuoteStatus,
 } from "../drizzle/schema";
-import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -69,9 +68,6 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -105,6 +101,29 @@ export async function getUserByOpenId(openId: string) {
     .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createLocalUser(input: InsertUser): Promise<void> {
+  const db = await requireDb();
+  await db.insert(users).values(input);
+}
+
+export async function updateUserAuth(
+  userId: number,
+  fields: { passwordHash?: string; role?: "user" | "admin" }
+): Promise<void> {
+  const db = await requireDb();
+  await db.update(users).set(fields).where(eq(users.id, userId));
+}
+
+export async function getUserByEmail(email: string) {
+  const db = await requireDb();
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  return result[0];
 }
 
 export async function countAdmins(): Promise<number> {
@@ -170,12 +189,14 @@ export async function createIndicator(input: {
   name: string;
   email: string;
   phone?: string | null;
+  userId?: number | null;
 }) {
   const db = await requireDb();
   const result = await db.insert(indicators).values({
     name: input.name.trim(),
     email: input.email.trim().toLowerCase(),
     phone: input.phone?.trim() || null,
+    userId: input.userId ?? null,
   });
   return Number(result[0].insertId);
 }

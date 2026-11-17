@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch, Link } from "wouter";
+import { Redirect, Route, Switch, Link } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AppShell } from "./components/AppShell";
@@ -13,13 +13,14 @@ import CotacaoDetalhe from "./pages/CotacaoDetalhe";
 import Imprimir from "./pages/Imprimir";
 import LinkPublico from "./pages/LinkPublico";
 import Painel from "./pages/Painel";
+import Entrar from "./pages/Entrar";
 /**
- * Só monta a página quando existe sessão. Evita que uma consulta protegida
- * dispare o redirecionamento de login antes de o usuário ver a tela de entrada.
+ * Só monta a página quando existe sessão. Sem sessão, leva para a tela de entrada.
  */
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useProfile();
-  if (loading || !user) return <AppShell>{null}</AppShell>;
+  if (loading) return <AppShell>{null}</AppShell>;
+  if (!user) return <Redirect to="/entrar" />;
   return <>{children}</>;
 }
 
@@ -35,7 +36,7 @@ function AdminRoute() {
     );
   }
 
-  if (!user) return <AppShell>{null}</AppShell>;
+  if (!user) return <Redirect to="/entrar" />;
 
   if (profile?.role !== "admin") {
     return (
@@ -77,6 +78,7 @@ function Router() {
           <Imprimir />
         </RequireAuth>
       </Route>
+      <Route path="/entrar" component={Entrar} />
       <Route path="/painel" component={AdminRoute} />
       {/* Link compartilhável: aberto sem login, somente leitura */}
       <Route path="/c/:token" component={LinkPublico} />

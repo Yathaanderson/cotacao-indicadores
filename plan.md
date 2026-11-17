@@ -23,7 +23,7 @@ Um PWA instalável no celular do indicador para ele mesmo solicitar a cotação 
 
 **Alertas.** Cada cotação concluída ou com falha dispara notificação ao proprietário pelo serviço de notificações da plataforma. Falha de alerta não derruba o pedido: fica registrada no evento e o painel mostra o estado real.
 
-**Autenticação.** Login Manus OAuth. O primeiro usuário a entrar vira administrador (bootstrap único, registrado em auditoria); os demais entram como indicadores. O administrador convida indicadores por e-mail; ao entrar com o mesmo e-mail, a conta é vinculada automaticamente. Sessão com cookie `SameSite=None; Secure` para funcionar no Preview embutido.
+**Autenticação.** Login próprio por e-mail e senha. O responsável é criado a partir de `ADMIN_EMAIL` e `ADMIN_PASSWORD` na inicialização. Os indicadores são convidados pelo responsável com e-mail; ao entrar com o mesmo e-mail, a conta é vinculada automaticamente. Sessão em cookie assinado com `JWT_SECRET`, válido por 30 dias, com limite de tentativas de login.
 
 ## Design
 
@@ -58,7 +58,7 @@ client/
   public/sw.js                cache do app shell
   public/icons/               ícones 192/512
   src/App.tsx                 rotas
-  src/pages/                  Inicio, NovaCotacao, CotacaoDetalhe, Painel, Imprimir, LinkPublico, Login
+  src/pages/                  Inicio, NovaCotacao, CotacaoDetalhe, Painel, Imprimir, LinkPublico, Entrar
   src/components/             AppShell, CartaoCotacao, SeloStatus, TrilhaEventos, SeletorOpcionais
 server/
   routers.ts                  procedures: quotes, admin, profile

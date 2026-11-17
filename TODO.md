@@ -5,7 +5,7 @@
 - [ ] Tabelas de indicadores, solicitações de cotação, eventos da trilha e catálogo de opcionais criadas e migradas, com token público único por cotação e status `pendente`, `processando`, `concluida`, `falha` ou `cancelada`.
 - [ ] API de cotação: criar pedido com placa, tipo de veículo, marca, modelo, ano, dados do cliente, estado, cidade, origem e opcionais; listar as próprias cotações; ver detalhe com trilha de eventos.
 - [ ] API do responsável: listar todas as solicitações com filtro por status, ver qualquer cotação, cancelar um pedido pendente e pausar ou retomar a automação.
-- [ ] Login Manus OAuth com sessão em cookie `SameSite=None; Secure`; primeiro usuário vira administrador com registro de auditoria; indicador convidado por e-mail é vinculado ao entrar com o mesmo e-mail.
+- [ ] Login próprio por e-mail e senha com sessão em cookie assinado; responsável criado a partir do ambiente; indicador convidado por e-mail é vinculado ao entrar com o mesmo e-mail; limite de tentativas de login.
 
 ## Formulário do indicador
 
@@ -38,7 +38,7 @@
 - [ ] Manifesto com nome, ícones 192 e 512, cor de tema, `display: standalone` e `start_url`, servido com o link declarado na página.
 - [ ] Service worker com cache do app shell, tela de indisponibilidade quando offline e atualização sem quebrar a sessão.
 - [ ] Layout mobile-first instalável, com navegação inferior e área segura respeitada em iPhone.
-- [ ] Rotas declaradas em `/manus-routes.json` coerentes com o App.
+- [ ] Rotas do app coerentes entre o cliente e o servidor.
 
 ## Verificação final
 
