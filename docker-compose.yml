@@ -28,10 +28,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "3000"
+    # Só no loopback: quem recebe o domínio é o nginx do host (ou o Caddy, se ativado).
+    ports:
+      - "127.0.0.1:3000:3000"
 
+  # Opcional: use somente se a porta 80/443 estiver livre no host.
+  # Ativar com: docker compose --profile caddy up -d
   caddy:
+    profiles: ["caddy"]
     image: caddy:2
     restart: unless-stopped
     environment:
