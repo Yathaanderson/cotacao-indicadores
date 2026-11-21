@@ -1,5 +1,6 @@
 import type { QuoteRequest } from "../../drizzle/schema";
 import { notifyOwner } from "../_core/notification";
+import { notifyWebhook } from "../_core/webhook";
 import * as db from "../db";
 import { createDriver } from "./powercrm";
 
@@ -31,7 +32,28 @@ async function safeNotify(title: string, content: string) {
   }
 }
 
+/** Dispara o evento para o webhook (n8n). Nunca interrompe o processamento. */
+async function safeWebhook(evento: string, quote: QuoteRequest) {
+  await notifyWebhook({
+    evento,
+    pedido: quote.id,
+    status: quote.status,
+    indicador: quote.indicatorName,
+    cliente: quote.clientName,
+    telefoneCliente: quote.clientPhone,
+    veiculo: quote.vehicleType,
+    placa: quote.plate,
+    cidade: quote.city,
+    uf: quote.state,
+    plano: quote.planName ?? null,
+    mensalidade: money(quote.monthlyPrice),
+    numeroCotacao: quote.quoteNumber ?? null,
+    motivo: quote.errorMessage ?? null,
+  });
+}
+
 export async function notifyNewQuote(quote: QuoteRequest) {
+  void safeWebhook("nova_cotacao", quote);
   await safeNotify(
     "Nova cotação solicitada",
     [
@@ -45,6 +67,7 @@ export async function notifyNewQuote(quote: QuoteRequest) {
 }
 
 async function notifyOutcome(quote: QuoteRequest, result: "concluida" | "falha") {
+  void safeWebhook(result === "concluida" ? "cotacao_concluida" : "cotacao_falha", quote);
   if (result === "concluida") {
     await safeNotify(
       "Cotação concluída",

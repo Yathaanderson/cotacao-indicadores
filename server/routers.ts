@@ -5,6 +5,9 @@ import { COOKIE_NAME } from "@shared/const";
 import * as db from "./db";
 import { notifyNewQuote } from "./automation/worker";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { hashPassword, verifyPassword } from "./_core/password";
+import { LOCAL_SESSION_TTL_MS, signLocalSession } from "./_core/localSession";
+import { allowLoginAttempt, resetLoginAttempts } from "./_core/loginLimiter";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
@@ -41,10 +44,78 @@ const indicatorInput = z.object({
   phone: z.string().max(32).optional().nullable(),
 });
 
+const passwordSchema = z.string().min(8, "A senha precisa ter pelo menos 8 caracteres.").max(200);
+const indicatorWithPasswordInput = indicatorInput.extend({ password: passwordSchema });
+
+/**
+ * Garante a conta de login do indicador. Se já existe usuário com o e-mail,
+ * usa essa conta e mantém a senha que ela já tem. Caso contrário, cria a conta
+ * com a senha inicial informada pelo responsável.
+ */
+async function ensureIndicatorAccount(email: string, name: string, password: string): Promise<number> {
+  const normalized = email.trim().toLowerCase();
+  const existingUser = await db.getUserByEmail(normalized);
+  if (existingUser) {
+    if (!existingUser.passwordHash) {
+      await db.updateUserAuth(existingUser.id, { passwordHash: await hashPassword(password) });
+    }
+    return existingUser.id;
+  }
+  await db.createLocalUser({
+    openId: `local_${nanoid(21)}`,
+    email: normalized,
+    name: name.trim(),
+    loginMethod: "email",
+    passwordHash: await hashPassword(password),
+    role: "user",
+    lastSignedIn: new Date(),
+  });
+  const created = await db.getUserByEmail(normalized);
+  if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível criar a conta." });
+  return created.id;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => {
+      // Nunca devolver o hash da senha ao navegador.
+      if (!ctx.user) return null;
+      const { passwordHash: _omit, ...safeUser } = ctx.user;
+      return safeUser;
+    }),
+    login: publicProcedure
+      .input(
+        z.object({
+          email: z.string().trim().toLowerCase().email("E-mail inválido.").max(320),
+          password: z.string().min(1, "Informe a senha.").max(200),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const ip = ctx.req.ip ?? ctx.req.socket.remoteAddress ?? "desconhecido";
+        if (!allowLoginAttempt(input.email, ip)) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+          });
+        }
+
+        const user = await db.getUserByEmail(input.email);
+        const passwordOk = await verifyPassword(input.password, user?.passwordHash);
+        // Mesma mensagem para e-mail inexistente e senha errada, para não revelar contas.
+        if (!user || !passwordOk) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "E-mail ou senha inválidos." });
+        }
+
+        resetLoginAttempts(input.email);
+        await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+        const token = await signLocalSession(user.openId);
+        ctx.res.cookie(COOKIE_NAME, token, {
+          ...getSessionCookieOptions(ctx.req),
+          maxAge: LOCAL_SESSION_TTL_MS,
+        });
+        return { success: true } as const;
+      }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
@@ -234,7 +305,7 @@ export const appRouter = router({
         return { paused: input.paused };
       }),
 
-    createIndicator: adminProcedure.input(indicatorInput).mutation(async ({ input }) => {
+    createIndicator: adminProcedure.input(indicatorWithPasswordInput).mutation(async ({ input }) => {
       const existing = await db.getIndicatorByEmail(input.email);
       if (existing) {
         throw new TRPCError({
@@ -242,9 +313,27 @@ export const appRouter = router({
           message: "Já existe um indicador com este e-mail.",
         });
       }
-      const id = await db.createIndicator(input);
+      const userId = await ensureIndicatorAccount(input.email, input.name, input.password);
+      const id = await db.createIndicator({ ...input, userId });
       return { id };
     }),
+
+    resetIndicatorPassword: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), password: passwordSchema }))
+      .mutation(async ({ input }) => {
+        const indicator = await db.getIndicatorById(input.id);
+        if (!indicator) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Indicador não encontrado." });
+        }
+        const passwordHash = await hashPassword(input.password);
+        if (indicator.userId) {
+          await db.updateUserAuth(indicator.userId, { passwordHash });
+        } else {
+          const userId = await ensureIndicatorAccount(indicator.email, indicator.name, input.password);
+          await db.linkIndicatorUser(indicator.id, userId);
+        }
+        return { success: true } as const;
+      }),
 
     setIndicatorActive: adminProcedure
       .input(z.object({ id: z.number().int().positive(), active: z.boolean() }))

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { STATUS_LABEL, type QuoteStatus } from "@/lib/quota";
 import { useProfile } from "@/hooks/useProfile";
-import { startLogin } from "@/const";
+import { goToLogin } from "@/const";
 import { Button } from "@/components/ui/button";
 import {
   ClipboardList,
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               Entre com sua conta para solicitar e acompanhar cotações de seguro auto.
             </p>
           </div>
-          <Button className="w-full" size="lg" onClick={() => startLogin()}>
+          <Button className="w-full" size="lg" onClick={() => goToLogin()}>
             Entrar
           </Button>
         </div>

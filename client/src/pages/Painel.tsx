@@ -43,7 +43,9 @@ export default function Painel() {
   const [tab, setTab] = useState<Tab>("cotacoes");
   const [filter, setFilter] = useState<QuoteStatus | "todas">("todas");
   const [selected, setSelected] = useState<number | null>(null);
-  const [newIndicator, setNewIndicator] = useState({ name: "", email: "", phone: "" });
+  const [newIndicator, setNewIndicator] = useState({ name: "", email: "", phone: "", password: "" });
+  const [resetId, setResetId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
   const [crm, setCrm] = useState({ email: "", password: "" });
 
   const overview = trpc.admin.overview.useQuery(undefined, { refetchInterval: 12_000 });
@@ -63,9 +65,19 @@ export default function Painel() {
 
   const createIndicator = trpc.admin.createIndicator.useMutation({
     onSuccess: async () => {
-      setNewIndicator({ name: "", email: "", phone: "" });
+      setNewIndicator({ name: "", email: "", phone: "", password: "" });
       await utils.admin.overview.invalidate();
-      toast.success("Indicador cadastrado. Ele entra com o mesmo e-mail.");
+      toast.success("Indicador cadastrado. Informe a ele o e-mail e a senha inicial.");
+    },
+    onError: error => toast.error(error.message),
+  });
+
+  const resetIndicatorPassword = trpc.admin.resetIndicatorPassword.useMutation({
+    onSuccess: async () => {
+      setResetId(null);
+      setResetPassword("");
+      await utils.admin.overview.invalidate();
+      toast.success("Senha redefinida. Informe a nova senha ao indicador.");
     },
     onError: error => toast.error(error.message),
   });
@@ -360,7 +372,7 @@ export default function Painel() {
                 <Users className="h-4 w-4" /> Novo indicador
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cadastre o e-mail que a pessoa usa para entrar. O vínculo é feito no primeiro acesso.
+                Defina uma senha inicial e informe ao indicador. Ele entra com o e-mail e essa senha.
               </p>
               <div className="mt-3 space-y-3">
                 <div className="space-y-1.5">
@@ -391,9 +403,20 @@ export default function Painel() {
                     placeholder="(81) 99999-9999"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ind-password">Senha inicial</Label>
+                  <Input
+                    id="ind-password"
+                    type="text"
+                    autoComplete="off"
+                    value={newIndicator.password}
+                    onChange={event => setNewIndicator(prev => ({ ...prev, password: event.target.value }))}
+                    placeholder="Mínimo de 8 caracteres"
+                  />
+                </div>
                 <Button
                   className="w-full"
-                  disabled={createIndicator.isPending || !newIndicator.name || !newIndicator.email}
+                  disabled={createIndicator.isPending || !newIndicator.name || !newIndicator.email || newIndicator.password.length < 8}
                   onClick={() => createIndicator.mutate(newIndicator)}
                 >
                   {createIndicator.isPending ? "Cadastrando…" : "Cadastrar indicador"}
@@ -414,18 +437,52 @@ export default function Painel() {
                       <p className="truncate text-sm font-medium">{indicator.name}</p>
                       <p className="truncate text-xs text-muted-foreground">{indicator.email}</p>
                       <p className="text-[0.68rem] text-muted-foreground">
-                        {indicator.userId ? "conta vinculada" : "aguardando primeiro acesso"}
+                        {indicator.userId ? "conta criada" : "sem conta de acesso"}
                       </p>
+                      {resetId === indicator.id && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <Input
+                            aria-label="Nova senha"
+                            type="text"
+                            autoComplete="off"
+                            value={resetPassword}
+                            onChange={event => setResetPassword(event.target.value)}
+                            placeholder="Nova senha (mín. 8)"
+                            className="h-8"
+                          />
+                          <Button
+                            size="sm"
+                            disabled={resetIndicatorPassword.isPending || resetPassword.length < 8}
+                            onClick={() =>
+                              resetIndicatorPassword.mutate({ id: indicator.id, password: resetPassword })
+                            }
+                          >
+                            Salvar
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant={indicator.active ? "outline" : "secondary"}
-                      onClick={() =>
-                        toggleIndicator.mutate({ id: indicator.id, active: !indicator.active })
-                      }
-                    >
-                      {indicator.active ? "Ativo" : "Desativado"}
-                    </Button>
+                    <div className="flex shrink-0 flex-col items-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant={indicator.active ? "outline" : "secondary"}
+                        onClick={() =>
+                          toggleIndicator.mutate({ id: indicator.id, active: !indicator.active })
+                        }
+                      >
+                        {indicator.active ? "Ativo" : "Desativado"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setResetPassword("");
+                          setResetId(resetId === indicator.id ? null : indicator.id);
+                        }}
+                      >
+                        Redefinir senha
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -1,114 +1,58 @@
-import { TRPCError } from "@trpc/server";
-import { ENV } from "./env";
+import nodemailer, { type Transporter } from "nodemailer";
 
 export type NotificationPayload = {
   title: string;
   content: string;
 };
 
-const TITLE_MAX_LENGTH = 1200;
-const CONTENT_MAX_LENGTH = 20000;
-
-const trimValue = (value: string): string => value.trim();
-const isNonEmptyString = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0;
-
-const buildEndpointUrl = (baseUrl: string): string => {
-  const normalizedBase = baseUrl.endsWith("/")
-    ? baseUrl
-    : `${baseUrl}/`;
-  return new URL(
-    "webdevtoken.v1.WebDevService/SendNotification",
-    normalizedBase
-  ).toString();
-};
-
-const validatePayload = (input: NotificationPayload): NotificationPayload => {
-  if (!isNonEmptyString(input.title)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification title is required.",
-    });
-  }
-  if (!isNonEmptyString(input.content)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification content is required.",
-    });
-  }
-
-  const title = trimValue(input.title);
-  const content = trimValue(input.content);
-
-  if (title.length > TITLE_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`,
-    });
-  }
-
-  if (content.length > CONTENT_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`,
-    });
-  }
-
-  return { title, content };
-};
-
 /**
- * Dispatches a project-owner notification through the Manus Notification Service.
- * Returns `true` if the request was accepted, `false` when the upstream service
- * cannot be reached (callers can fall back to email/slack). Validation errors
- * bubble up as TRPC errors so callers can fix the payload.
+ * Envia o alerta ao responsável por e-mail (SMTP próprio, sem serviço externo).
+ *
+ * Destinatário: NOTIFY_EMAIL, ou ADMIN_EMAIL se NOTIFY_EMAIL não estiver definido.
+ * Retorna `true` quando o servidor SMTP aceita a mensagem e `false` em qualquer
+ * outro caso (SMTP não configurado, falha de conexão, recusa). Nunca lança erro,
+ * para que a falha de alerta não derrube o pedido.
  */
-export async function notifyOwner(
-  payload: NotificationPayload
-): Promise<boolean> {
-  const { title, content } = validatePayload(payload);
+let transporter: Transporter | null = null;
 
-  if (!ENV.forgeApiUrl) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured.",
+function getTransporter(): Transporter | null {
+  const host = process.env.SMTP_HOST;
+  if (!host) return null;
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host,
+      port: Number(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: process.env.SMTP_USER
+        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS ?? "" }
+        : undefined,
     });
   }
+  return transporter;
+}
 
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured.",
-    });
+export async function notifyOwner(payload: NotificationPayload): Promise<boolean> {
+  const title = payload.title.trim();
+  const content = payload.content.trim();
+  if (!title || !content) return false;
+
+  const to = (process.env.NOTIFY_EMAIL || process.env.ADMIN_EMAIL || "").trim();
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || "";
+  const mailer = getTransporter();
+
+  if (!mailer || !to || !from) {
+    console.warn("[Notification] SMTP ou destinatário não configurado; alerta não enviado.");
+    return false;
   }
-
-  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${ENV.forgeApiKey}`,
-        "content-type": "application/json",
-        "connect-protocol-version": "1",
-      },
-      body: JSON.stringify({ title, content }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${
-          detail ? `: ${detail}` : ""
-        }`
-      );
-      return false;
-    }
-
+    await mailer.sendMail({ from, to, subject: title.slice(0, 200), text: content });
     return true;
   } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
+    console.warn(
+      "[Notification] Falha ao enviar e-mail:",
+      error instanceof Error ? error.message : "erro desconhecido"
+    );
     return false;
   }
 }
