@@ -8,8 +8,10 @@ import {
   quoteEvents,
   quoteRequests,
   users,
+  whatsappConversas,
   type User,
   type QuoteStatus,
+  type WhatsappConversa,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -539,4 +541,63 @@ export async function countUnlinkedIndicators() {
     .from(indicators)
     .where(isNull(indicators.userId));
   return Number(rows[0]?.total ?? 0);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Conversa guiada pelo WhatsApp                                              */
+/* ------------------------------------------------------------------------- */
+
+/** Mantém só os dígitos e remove o DDI 55 quando presente. */
+export function normalizarTelefoneWhatsapp(value: string | null | undefined): string {
+  const digits = (value ?? "").replace(/\D/g, "");
+  return digits.length > 11 && digits.startsWith("55") ? digits.slice(2) : digits;
+}
+
+/** Compara pelos últimos 10 dígitos (DDD + número), ignorando formatação e DDI. */
+export function mesmoTelefoneWhatsapp(a: string | null | undefined, b: string | null | undefined): boolean {
+  const x = normalizarTelefoneWhatsapp(a);
+  const y = normalizarTelefoneWhatsapp(b);
+  return x.length >= 10 && y.length >= 10 && x.slice(-10) === y.slice(-10);
+}
+
+export async function getIndicatorByPhone(phone: string) {
+  const rows = await listIndicators();
+  return rows.find(row => mesmoTelefoneWhatsapp(row.phone, phone)) ?? null;
+}
+
+export async function getConversaWhatsapp(telefone: string): Promise<WhatsappConversa | null> {
+  const db = await requireDb();
+  const rows = await db
+    .select()
+    .from(whatsappConversas)
+    .where(eq(whatsappConversas.telefone, normalizarTelefoneWhatsapp(telefone)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getConversaWhatsappByPedido(pedidoId: number): Promise<WhatsappConversa | null> {
+  const db = await requireDb();
+  const rows = await db
+    .select()
+    .from(whatsappConversas)
+    .where(eq(whatsappConversas.pedidoId, pedidoId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function salvarConversaWhatsapp(input: {
+  telefone: string;
+  etapa: string;
+  dados: unknown;
+  pedidoId: number | null;
+}): Promise<void> {
+  const db = await requireDb();
+  const telefone = normalizarTelefoneWhatsapp(input.telefone);
+  const dados = JSON.stringify(input.dados ?? {});
+  await db
+    .insert(whatsappConversas)
+    .values({ telefone, etapa: input.etapa, dados, pedidoId: input.pedidoId })
+    .onDuplicateKeyUpdate({
+      set: { etapa: input.etapa, dados, pedidoId: input.pedidoId },
+    });
 }

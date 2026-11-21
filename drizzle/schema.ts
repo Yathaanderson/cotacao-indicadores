@@ -140,3 +140,18 @@ export const appSettings = mysqlTable("appSettings", {
   value: text("value"),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
+
+/**
+ * Estado da conversa guiada pelo WhatsApp, uma linha por número de indicador.
+ * `etapa` diz em qual pergunta a conversa está; `dados` guarda as respostas
+ * já validadas, em JSON; `pedidoId` liga a conversa à cotação em andamento.
+ */
+export const whatsappConversas = mysqlTable("whatsappConversas", {
+  telefone: varchar("telefone", { length: 20 }).primaryKey(),
+  etapa: varchar("etapa", { length: 32 }).default("inicio").notNull(),
+  dados: text("dados"),
+  pedidoId: int("pedidoId"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WhatsappConversa = typeof whatsappConversas.$inferSelect;
