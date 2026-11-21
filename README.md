@@ -22,7 +22,7 @@ Scripts úteis:
 
 ## Deploy na VPS (Docker)
 
-A stack `docker-compose.yml` sobe três serviços: a aplicação, um MySQL 8.4 e o Caddy, que emite o certificado HTTPS automaticamente.
+A stack `docker-compose.yml` sobe a aplicação e um MySQL 8.4. O Caddy também está no arquivo, mas é opcional (profile `caddy`): quando ativado, ele emite o certificado HTTPS automaticamente.
 
 ### 1. Preparar a VPS
 
@@ -46,6 +46,7 @@ Edite o `.env` e preencha:
 - `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `ADMIN_NAME`: o responsável. A senha precisa ter pelo menos 8 caracteres.
 - `SMTP_*`: servidor de e-mail para os alertas. Sem ele o app funciona, mas os alertas não são enviados e a falha fica registrada no log.
 - `AUTOMATION_DRIVER`: mantenha `simulado` até o acesso ao PowerCRM ser liberado.
+- `N8N_WEBHOOK_URL`: opcional. URL do webhook do n8n para os alertas em tempo real (ver abaixo). Vazio = desligado.
 
 ### 3. Subir
 
@@ -57,6 +58,32 @@ docker compose logs -f app
 O app sobe em `127.0.0.1:3000`, sem exposição pública. Sem `--profile caddy`, só o app e o banco sobem, e o domínio não é atendido. Se o servidor usar um proxy próprio (sem Caddy), rode `docker compose up -d --build` e aponte o proxy para `http://127.0.0.1:3000`.
 
 Na primeira execução, a aplicação aplica as migrações, cria o responsável e inicia a fila de automação. Acesse `https://<APP_DOMAIN>/entrar` e entre com `ADMIN_EMAIL` e `ADMIN_PASSWORD`.
+
+### Alertas no WhatsApp (opcional, via n8n)
+
+Com `N8N_WEBHOOK_URL` preenchido, o app envia eventos em JSON ao n8n em três momentos:
+
+- `nova_cotacao`: um indicador pediu uma cotação.
+- `cotacao_concluida`: a automação terminou com sucesso.
+- `cotacao_falha`: a automação falhou.
+
+Cada evento traz indicador, cliente, telefone do cliente, veículo, placa, cidade/UF, plano, mensalidade, número da cotação e motivo. O envio é feito em segundo plano e não atrasa a cotação: se o n8n estiver fora do ar, a falha só aparece no log da aplicação.
+
+Para ligar o WhatsApp, o workflow no n8n precisa de:
+
+1. Um nó **Webhook** (método `POST`, path `cotacoes`, resposta "On Received"), com o workflow **ativo**. O webhook de produção só responde com o workflow ativo.
+2. Um nó **HTTP Request** com `POST https://<seu-evolution-go>/send/text`, corpo JSON `{"number": "<DDI+DDD+número>", "text": "<mensagem>"}` e o header `apikey` com o **token da instância** do Evolution Go (não a chave global).
+
+Depois, defina no `.env` `N8N_WEBHOOK_URL=https://<seu-n8n>/webhook/cotacoes` e reinicie a aplicação. Sempre que alterar o workflow, clique em **Publish**: o n8n executa a versão publicada, não o rascunho.
+
+### Serviços fora deste repositório
+
+Na VPS de produção, o proxy e os serviços auxiliares ficam em stacks separadas, fora do repositório:
+
+- **Caddy único no host** (`network_mode: host`, portas 80 e 443), com um bloco por domínio: a aplicação (`127.0.0.1:3000`), o n8n (`127.0.0.1:5678`) e o Evolution Go (`127.0.0.1:4000`). O `network_mode: host` é necessário porque os serviços publicam apenas em `127.0.0.1`, que um container não alcança pelo gateway do Docker.
+- **n8n** com Postgres, e **Evolution Go** com Postgres, ambos publicados só em `127.0.0.1`.
+
+Nesse servidor, o Caddy do repositório fica parado, porque o proxy único já usa as portas 80 e 443. Suba a aplicação com `docker compose up -d --build` (sem `--profile caddy`) e aponte o bloco do domínio no proxy do host.
 
 ### Operação
 
