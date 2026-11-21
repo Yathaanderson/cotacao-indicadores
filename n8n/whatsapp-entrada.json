@@ -1,0 +1,89 @@
+{
+  "name": "WhatsApp de entrada (conversa guiada de cotação)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-entrada",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-entrada",
+      "name": "Webhook entrada",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extrai número e texto da mensagem recebida pelo Evolution Go.\n// Ignora eventos que não são mensagem, mensagens enviadas pelo próprio número,\n// grupos e mensagens sem texto (áudio, figurinha, etc.).\nconst body = $input.first().json.body ?? $input.first().json;\nif (body.event !== 'Message') return [];\n\nconst data = body.data ?? {};\nconst info = data.Info ?? {};\nif (info.IsFromMe === true) return [];\n\nconst chat = typeof info.Chat === 'string' ? info.Chat : String(info.Chat?.String ?? info.Chat?.User ?? '');\nif (!chat || chat.includes('@g.us') || chat.includes('@lid')) return [];\n\nconst telefone = chat.split('@')[0].split(':')[0];\nconst msg = data.Message ?? {};\nconst texto = String(msg.conversation ?? msg.Conversation ?? msg.extendedTextMessage?.text ?? '').trim();\nif (!telefone || !texto) return [];\n\nreturn [{ json: { telefone, texto } }];"
+      },
+      "id": "extrair-mensagem",
+      "name": "Extrair mensagem",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cotacao.yprospere.com/api/whatsapp/mensagem",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer COLE_AQUI_O_WHATSAPP_BRIDGE_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ telefone: $json.telefone, texto: $json.texto }) }}",
+        "options": {}
+      },
+      "id": "tratar-no-app",
+      "name": "Tratar no app",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evogo.yprospere.com/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "COLE_AQUI_O_TOKEN_DA_INSTANCIA"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $('Extrair mensagem').item.json.telefone, text: $json.resposta }) }}",
+        "options": {}
+      },
+      "id": "responder-whatsapp",
+      "name": "Responder WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0]
+    }
+  ],
+  "connections": {
+    "Webhook entrada": {
+      "main": [[{ "node": "Extrair mensagem", "type": "main", "index": 0 }]]
+    },
+    "Extrair mensagem": {
+      "main": [[{ "node": "Tratar no app", "type": "main", "index": 0 }]]
+    },
+    "Tratar no app": {
+      "main": [[{ "node": "Responder WhatsApp", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

@@ -3,6 +3,7 @@ import { notifyOwner } from "../_core/notification";
 import { notifyWebhook } from "../_core/webhook";
 import * as db from "../db";
 import { createDriver } from "./powercrm";
+import { mensagemResultado } from "../whatsapp/fluxo";
 
 const POLL_INTERVAL_MS = Number(process.env.AUTOMATION_POLL_MS ?? 5000);
 const STALE_CHECK_INTERVAL_MS = 60_000;
@@ -33,7 +34,11 @@ async function safeNotify(title: string, content: string) {
 }
 
 /** Dispara o evento para o webhook (n8n). Nunca interrompe o processamento. */
-async function safeWebhook(evento: string, quote: QuoteRequest) {
+async function safeWebhook(
+  evento: string,
+  quote: QuoteRequest,
+  extra: Record<string, unknown> = {}
+) {
   await notifyWebhook({
     evento,
     pedido: quote.id,
@@ -49,7 +54,35 @@ async function safeWebhook(evento: string, quote: QuoteRequest) {
     mensalidade: money(quote.monthlyPrice),
     numeroCotacao: quote.quoteNumber ?? null,
     motivo: quote.errorMessage ?? null,
+    ...extra,
   });
+}
+
+/**
+ * Se o pedido veio de uma conversa no WhatsApp, devolve o número do indicador e
+ * a mensagem final. A conversa volta ao início para o próximo pedido.
+ */
+async function avisoWhatsapp(quote: QuoteRequest): Promise<Record<string, unknown>> {
+  try {
+    const conversa = await db.getConversaWhatsappByPedido(quote.id);
+    if (!conversa) return {};
+    await db.salvarConversaWhatsapp({
+      telefone: conversa.telefone,
+      etapa: "inicio",
+      dados: {},
+      pedidoId: null,
+    });
+    return {
+      telefoneIndicador: conversa.telefone,
+      mensagemIndicador: mensagemResultado({
+        ...quote,
+        monthlyPrice: money(quote.monthlyPrice) ?? null,
+      }),
+    };
+  } catch (error) {
+    console.warn("[WhatsApp] Falha ao preparar aviso ao indicador:", error);
+    return {};
+  }
 }
 
 export async function notifyNewQuote(quote: QuoteRequest) {
@@ -67,7 +100,12 @@ export async function notifyNewQuote(quote: QuoteRequest) {
 }
 
 async function notifyOutcome(quote: QuoteRequest, result: "concluida" | "falha") {
-  void safeWebhook(result === "concluida" ? "cotacao_concluida" : "cotacao_falha", quote);
+  const extra = await avisoWhatsapp(quote);
+  void safeWebhook(
+    result === "concluida" ? "cotacao_concluida" : "cotacao_falha",
+    quote,
+    extra
+  );
   if (result === "concluida") {
     await safeNotify(
       "Cotação concluída",

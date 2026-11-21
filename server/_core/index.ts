@@ -8,6 +8,7 @@ import { ensureAdminFromEnv } from "./bootstrapAdmin";
 import { startAutomationWorker } from "../automation/worker";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { registrarRotasWhatsapp } from "../whatsapp/rotas";
 
 async function startServer() {
   if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
@@ -19,6 +20,7 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  registrarRotasWhatsapp(app);
   // tRPC API
   app.use(
     "/api/trpc",

@@ -1,0 +1,100 @@
+{
+  "name": "Alerta de cotações e resposta ao indicador (WhatsApp via Evolution Go)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cotacoes",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-cotacoes",
+      "name": "Webhook cotações",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evogo.yprospere.com/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "COLE_AQUI_O_TOKEN_DA_INSTANCIA" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: \"SEU_NUMERO_COM_DDI\", text: [\n  \"🔔 \" + $json.body.evento,\n  \"Indicador: \" + ($json.body.indicador ?? \"\"),\n  \"Placa: \" + ($json.body.placa ?? \"\") + \" · \" + ($json.body.veiculo ?? \"\"),\n  \"Cliente: \" + ($json.body.cliente ?? \"\") + \" \" + ($json.body.telefoneCliente ?? \"\"),\n  \"Status: \" + ($json.body.status ?? \"\"),\n  \"Cotação nº: \" + ($json.body.numeroCotacao ?? \"-\"),\n  \"Mensalidade: \" + ($json.body.mensalidade ?? \"-\"),\n  \"Motivo: \" + ($json.body.motivo ?? \"-\")\n].join(\"\\n\") }) }}",
+        "options": {}
+      },
+      "id": "alerta-admin",
+      "name": "Alerta ao responsável",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [260, -120]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "tem-indicador",
+              "leftValue": "={{ $json.body.telefoneIndicador ?? '' }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "notEmpty", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tem-indicador",
+      "name": "Pedido veio do WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [260, 120]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://evogo.yprospere.com/send/text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "COLE_AQUI_O_TOKEN_DA_INSTANCIA" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.body.telefoneIndicador, text: $json.body.mensagemIndicador }) }}",
+        "options": {}
+      },
+      "id": "responder-indicador",
+      "name": "Responder ao indicador",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 40]
+    }
+  ],
+  "connections": {
+    "Webhook cotações": {
+      "main": [
+        [
+          { "node": "Alerta ao responsável", "type": "main", "index": 0 },
+          { "node": "Pedido veio do WhatsApp?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Pedido veio do WhatsApp?": {
+      "main": [
+        [{ "node": "Responder ao indicador", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

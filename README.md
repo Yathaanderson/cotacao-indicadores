@@ -76,6 +76,24 @@ Para ligar o WhatsApp, o workflow no n8n precisa de:
 
 Depois, defina no `.env` `N8N_WEBHOOK_URL=https://<seu-n8n>/webhook/cotacoes` e reinicie a aplicação. Sempre que alterar o workflow, clique em **Publish**: o n8n executa a versão publicada, não o rascunho.
 
+### Cotação pelo WhatsApp (conversa guiada)
+
+O indicador pode pedir cotação pelo WhatsApp. O número dele precisa estar cadastrado no campo *celular* do indicador. A conversa segue as perguntas: tipo do veículo, placa, nome, celular e e-mail do cliente, UF, cidade e observações. No fim, o indicador responde *SIM* para enviar ou *NAO* para cancelar. Em qualquer momento, *CANCELAR* volta ao início.
+
+Quando a cotação termina, o aplicativo manda ao n8n o texto final (plano, mensalidade e link) e o n8n o envia ao indicador.
+
+Peças:
+
+- `server/whatsapp/`: regras da conversa (`fluxo.ts`), criação do pedido (`pedido.ts`) e o endpoint `POST /api/whatsapp/mensagem`, protegido pelo token `WHATSAPP_BRIDGE_TOKEN`.
+- `n8n/whatsapp-entrada.json`: recebe as mensagens do Evolution Go e devolve a resposta do app.
+- `n8n/cotacao-alerta-whatsapp.json`: avisos ao responsável e, quando o pedido veio do WhatsApp, o resultado ao indicador.
+
+Para ligar:
+
+1. Gere um token para o n8n e coloque em `WHATSAPP_BRIDGE_TOKEN` no `.env`: `openssl rand -hex 32`. Depois, reinicie o app.
+2. No n8n, importe os dois arquivos de `n8n/`. Substitua `COLE_AQUI_O_WHATSAPP_BRIDGE_TOKEN` pelo token do passo 1, `COLE_AQUI_O_TOKEN_DA_INSTANCIA` pelo token da instância do Evolution Go e `SEU_NUMERO_COM_DDI` pelo seu número, no alerta. Ative os dois.
+3. No Evolution Go, a instância precisa enviar as mensagens recebidas ao webhook do n8n. Isso é configurado no banco `evogo_users`, na tabela `instances` (campos `webhook` e `events`), com o valor `MESSAGE` em `events`. Depois, reinicie o `evolution-go`.
+
 ### Serviços fora deste repositório
 
 Na VPS de produção, o proxy e os serviços auxiliares ficam em stacks separadas, fora do repositório:
